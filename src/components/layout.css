@@ -1,0 +1,61 @@
+.flex {
+  display: flex;
+}
+
+.container {
+  max-width: 80rem;
+  margin: 0 auto;
+}
+.sidebar {
+  flex: 0 0 16rem;
+  font-size: .875rem;
+}
+
+.content {
+  min-width: 20rem;
+  flex-grow: 1;
+  padding: 2rem 1rem;
+}
+
+.content-toc {
+  flex: 0 0 16rem;
+  font-size: .75rem;
+}
+
+.content-toc-content {
+  width: 16rem;
+  padding: 1rem;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body {
+  color: #333;
+  margin: 0 !important;
+}
+
+body #root {
+  min-width: 20rem;
+  background: white;
+  letter-spacing: .33px;
+  font-weight: 400;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+ul {
+  /*padding-inline-start: 0;*/
+}
+
+a {
+  font-weight: 400;
+  color: inherit;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}

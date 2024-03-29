@@ -1,0 +1,130 @@
+.markdown pre {
+  font-size: 14px;
+  padding-left: 24px;
+  padding-right: 24px;
+  background-color: #fbfcfd;
+}
+
+[data-prefers-color='dark'] .markdown pre {
+  background-color: #020305;
+}
+
+.markdown pre {
+  margin-block-start: 12px;
+  margin-block-end: 12px;
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+  padding-block-start: 12px;
+  padding-block-end: 12px;
+  padding-inline-start: 16px;
+  padding-inline-end: 16px;
+  overflow: auto;
+  font-family:
+    SFMono-Regular,
+    consolas,
+    Liberation Mono,
+    menlo,
+    courier,
+    monospace,
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    Segoe UI Symbol;
+  white-space: pre;
+  word-wrap: normal;
+  border-radius: 4px;
+  background-color: #0000000e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .markdown pre {
+    background-color: #ffffff0e;
+  }
+}
+
+.markdown pre code {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: #0000;
+  color: inherit;
+}
+
+.pamphlet-demo {
+  border: 1px solid #e4e9ec;
+}
+
+.pamphlet-demo-content {
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+  padding: 40px 24px;
+}
+
+.pamphlet-demo-meta {
+  border-top: 1px solid #e4e9ec;
+  display: flex;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+}
+.pamphlet-demo-meta:not(:last-child) {
+  border-bottom: 1px dashed #e4e9ec;
+}
+.pamphlet-demo-meta-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pamphlet-demo-meta-action-btn > svg {
+  width: 16px;
+  fill: #98a3aa;
+  transition: fill 0.2s;
+}
+.pamphlet-demo-meta-action-btn:hover > svg {
+  fill: #7c8a93;
+}
+
+.pamphlet-demo-source-code {
+  position: relative;
+  background-color: #fbfcfd;
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+}
+.pamphlet-demo-source-code > pre {
+  margin: 0 !important;
+  padding: 18px 24px !important;
+  font-size: 14px !important;
+  line-height: 1.58 !important;
+  direction: ltr;
+  background: transparent !important;
+}
+.pamphlet-demo-source-code-copy {
+  position: absolute;
+  top: 9px;
+  right: 12px;
+  display: inline-block;
+  padding: 8px 12px;
+  background-color: #fbfcfdcc;
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pamphlet-demo-source-code-copy > svg {
+  width: 16px;
+  fill: #98a3aa;
+  transition: fill 0.2s;
+}
+
+.pamphlet-demo-source-code:not(:hover) .pamphlet-demo-source-code-copy {
+  opacity: 0;
+  visibility: hidden;
+}
