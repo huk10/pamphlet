@@ -5,7 +5,7 @@ import {
   COMPONENTS_PACKAGE_PATH,
   GENERATE_CODEBLOCKS_DIR_PATH,
   GENERATE_SITE_DATA_PATH,
-} from './const.js';
+} from './constants.js';
 
 interface CompileOption {
   cwd: string;

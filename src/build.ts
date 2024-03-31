@@ -21,6 +21,11 @@ interface OptionalOptions {
   inline?: boolean;
   // 预设的一组插件
   presets?: Preset;
+
+  // 至少存在多少个 link 才生成 toc
+  // 默认：3
+  tableOfContentMinCount?: number;
+
   // remark 插件
   remarkPlugins?: Plugin[];
   // rehype 插件
@@ -79,7 +84,8 @@ export async function build(option: BuildOptions) {
   const remark_plugins = (presets?.remark || []).concat(remarkPlugins);
   const rehype_plugins = (presets?.rehpye || []).concat(rehypePlugins);
 
-  const processor = () => createProcessor(resolvePath(cwd, baseUrl), remark_plugins, rehype_plugins);
+  const processor = () =>
+    createProcessor(resolvePath(cwd, baseUrl), remark_plugins, rehype_plugins);
 
   // 解析并将 Markdown 转换为 jsx 文件。
   const metadata = await parse(resolvePath(cwd, outDir), processor, docs);

@@ -1,34 +1,14 @@
 import dayjs from 'dayjs';
-import {Root} from 'mdast';
+import {Heading, Root} from 'mdast';
 import {VFile} from 'vfile';
 import {statSync} from 'node:fs';
 import {visit} from 'unist-util-visit';
+import {FrontMatter} from '../type.js';
 import {parse as parseYaml} from 'yaml';
+import {basename, extname} from 'node:path';
 import {toString} from 'mdast-util-to-string';
 
-export interface FrontMatter {
-  title: string;
-  created: string;
-  updated: string;
-  description?: string;
-
-  group?: {
-    name?: string;
-    order?: number;
-  };
-
-  menu?: {
-    name?: string;
-    order?: number;
-  };
-
-  navigation?: {
-    name?: string;
-    order?: string;
-  };
-}
-
-function getFileMetadata(uri: string): Partial<FrontMatter> {
+function fsTimes(uri: string): Partial<Pick<FrontMatter, 'created' | 'updated'>> {
   try {
     const fTime = (time: string | number | Date): string => {
       return dayjs(time).format('YYYY-MM-DD HH:mm');
@@ -47,28 +27,40 @@ function getFileMetadata(uri: string): Partial<FrontMatter> {
  */
 export default function remarkMetadata() {
   return (ast: Root, vFile: VFile) => {
-    const metadata = getFileMetadata(vFile.path);
-    const objects = [];
+    const frontMatters = [];
+    const metadata = fsTimes(vFile.path);
     for (const node of ast.children) {
       if (node.type === 'yaml') {
         const yaml = parseYaml(node.value);
         if (yaml !== null && typeof yaml === 'object' && !Array.isArray(yaml)) {
-          objects.push(yaml);
+          frontMatters.push(yaml);
         }
       }
     }
     // 正常情况只有一个 frontMatter
-    if (objects.length > 1) {
+    if (frontMatters.length > 1) {
       console.warn('Multiple frontMatter detected, only the first one will be used.');
     }
-    const result = Object.assign({}, metadata, objects[0] || {});
+    const result = Object.assign({}, metadata, frontMatters[0] || {});
+
     // 读取默认标题
     if (!result.title) {
-      visit<Root, 'heading'>(ast, 'heading', node => {
+      let heading = '';
+      let minDepth = Number.MAX_SAFE_INTEGER;
+      visit<Root, 'heading'>(ast, 'heading', (node: Heading) => {
+        if (node.depth < minDepth) {
+          minDepth = node.depth;
+          heading = toString(node.children);
+        }
         if (node.depth === 1) {
           result.title = toString(node.children);
         }
       });
+      if (minDepth <= 2) {
+        result.title = heading;
+      } else {
+        result.title = basename(vFile.path).slice(0, -extname(vFile.path).length);
+      }
     }
     // 赋值给 vFile
     vFile.data.frontMatter = result;

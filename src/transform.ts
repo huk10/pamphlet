@@ -1,5 +1,4 @@
 import {readSync} from 'to-vfile';
-import {Metadata} from './type.js';
 import {Plugin} from './presets.js';
 import remarkParse from 'remark-parse';
 import remarkRehype from 'remark-rehype';
@@ -8,12 +7,13 @@ import {createDirectory} from './utils.js';
 import rehpyeRaw from './plugin/rehpye-raw.js';
 import remarkToc from './plugin/remark-toc.js';
 import rehpyeImg from './plugin/rehpye-img.js';
+import {FrontMatter, Metadata} from './type.js';
 import rehpyeDemo from './plugin/rehpye-demo.js';
 import remarkEmbed from './plugin/remark-embed.js';
 import remarkLink from './plugin/remark-link.js';
 import rehpyeJsxify from './plugin/rehpye-jsxify.js';
+import remarkMetadata from './plugin/remark-metadata.js';
 import {readdir, stat, writeFile, copyFile} from 'node:fs/promises';
-import remarkMetadata, {FrontMatter} from './plugin/remark-metadata.js';
 import {dirname, extname, relative, resolve as resolvePath} from 'node:path';
 
 export interface FileMetadata {
@@ -43,7 +43,7 @@ export function createProcessor(baseUrl: string, remark: Plugin[], rehpye: Plugi
     }
   };
 
-  appendPlugin(remarkToc);
+  appendPlugin([remarkToc, {limit: 3}] as Plugin);
   appendPlugin(remarkEmbed);
   appendPlugin(remarkMetadata);
   appendPlugin([remarkLink, {baseUrl: baseUrl}] as Plugin);

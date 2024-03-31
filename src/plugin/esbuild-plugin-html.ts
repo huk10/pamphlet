@@ -1,9 +1,9 @@
-import {OutputFile, Plugin} from 'esbuild';
-import {copyFile} from 'fs/promises';
 import {JSDOM} from 'jsdom';
+import {copyFile} from 'fs/promises';
+import {OutputFile, Plugin} from 'esbuild';
 import {writeFile} from 'node:fs/promises';
-import {resolve, isAbsolute, dirname, extname, basename, relative} from 'node:path';
 import {createDirectory} from '../utils.js';
+import {resolve, isAbsolute, dirname, extname, basename, relative} from 'node:path';
 
 export interface HtmlPluginOptions {
   // html 标签上的 lang 属性
@@ -34,6 +34,7 @@ const HTML_TEMPLATE = `
 </body>
 </html>`.trim();
 
+// todo jsdom 体积很大需要替换
 export function htmlPlugin(options: HtmlPluginOptions): Plugin {
   if (options.favicon && !isAbsolute(options.favicon)) {
     throw new Error('favicon need a absolute path');

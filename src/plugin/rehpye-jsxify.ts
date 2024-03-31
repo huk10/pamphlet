@@ -1,20 +1,20 @@
 import {Root} from 'hast';
 import {sha1} from '../utils.js';
-import {readFileSync, writeFileSync} from 'node:fs';
+import {NodeData} from './type.js';
+import {Metadata} from '../type.js';
+import {readFileSync} from 'node:fs';
 import {FrozenProcessor} from 'unified';
 import {visit} from 'estree-util-visit';
-import {Metadata} from '../type.js';
-import {NodeData} from './rehpye-demo.js';
-import {toJs, jsx} from 'estree-util-to-js';
-import {toEstree} from 'hast-util-to-estree';
 import {resolve, relative} from 'node:path';
+import {toJs, jsx, Options} from 'estree-util-to-js';
+import {toEstree} from 'hast-util-to-estree';
+import type {Node, JSXElement, VariableDeclaration, JSXAttribute} from 'estree-jsx';
+import type {FunctionDeclaration, Expression, ExpressionStatement, ImportDeclaration} from 'estree';
 import {
   COMPONENTS_PACKAGE_PATH,
   GENERATE_CODEBLOCKS_DIR_PATH,
   GENERATE_SITE_DATA_PATH,
-} from '../const.js';
-import type {Node, JSXElement, VariableDeclaration, JSXAttribute} from 'estree-jsx';
-import type {FunctionDeclaration, Expression, ExpressionStatement, ImportDeclaration} from 'estree';
+} from '../constants.js';
 
 const CORE_COMPONENTS = ['Demo', 'Layout'];
 
@@ -23,19 +23,18 @@ const CORE_COMPONENTS = ['Demo', 'Layout'];
 // 2. 获取其源码。
 // 3. 生成 ast。
 // 生成出来的 demo 组件大概是这样的：
-// import DemoContent2ef7bde608ce5404e97d5f042f95f89f1c232871 from "@pamphlet/codeblocks/codeblocks.2ef7bde608ce5404e97d5f042f95f89f1c232871"
-// function DemoContainer2ef7bde608ce5404e97d5f042f95f89f1c232871() {
+// import DemoContent2ef7bde from "@pamphlet/codeblocks/codeblocks.2ef7bde"
+// function DemoContainer2ef7bde() {
 //   const content = `source code`;
 //   return (
 //     <Demo content={content} >
-//       <DemoContent2ef7bde608ce5404e97d5f042f95f89f1c232871 />
+//       <DemoContent2ef7bde />
 //     </Demo>
 //   )
 // }
 export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: string}) {
   this.Compiler = (ast: Root, vFile) => {
     const {outDir} = options;
-    writeFileSync(vFile.dirname + '/ast.json', JSON.stringify(ast));
     const esTree = toEstree(ast as never);
 
     const externals: Metadata['externals'] = [];
@@ -46,61 +45,59 @@ export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: st
     const components: Array<{name: string; path: string}> = [];
 
     visit(esTree, (node: Node, key, index, ancestors) => {
-      const data = (<{data: NodeData}>(<unknown>node)).data;
-      if (node.type === 'JSXElement' && data?.isDemo) {
-        // 内嵌组件使用 Markdown 语法嵌入的。
-        if (data.type === 'code-block') {
-          const hash = sha1(data.content!).slice(0, 6);
-          const fileName = `codeblocks.${hash}`;
-          const componentName = `DemoContent${hash}`;
-          const importPath = `${GENERATE_CODEBLOCKS_DIR_PATH}/${fileName}`;
+      const data = ((node as unknown as any).data || {}) as NodeData;
+      // 内嵌组件使用 Markdown 语法嵌入的。
+      if (node.type === 'JSXElement' && data.codeBlock) {
+        const hash = sha1(data.codeBlock.content).slice(0, 6);
+        const fileName = `codeblocks.${hash}`;
+        const componentName = `DemoContent${hash}`;
+        const importPath = `${GENERATE_CODEBLOCKS_DIR_PATH}/${fileName}`;
 
-          components.push({name: componentName, path: importPath});
+        components.push({name: componentName, path: importPath});
 
-          codeblocks.push({
-            content: data.content!,
-            relative: data.relative!,
-            fileName: fileName + '.jsx',
-          });
+        codeblocks.push({
+          content: data.codeBlock.content,
+          relative: data.codeBlock.relative,
+          fileName: fileName + '.jsx',
+        });
 
-          const parents = ancestors[ancestors.length - 1];
-          // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
-          if (typeof index === 'number') {
-            const container = `DemoContainer${hash}`;
-            declarations.push(createDemoContainerComponent(hash, data.content!));
-            (parents as JSXElement).children[index] = createJSXElement(container);
-          }
-        }
-
-        // 外部组件使用 <code src=""></code> 的方式引入。
-        if (data.type === 'external') {
-          const sourceURL = resolve(data.relative!, data.source!);
-          const sourceBuffer = readFileSync(sourceURL, 'utf-8');
-          const hash = sha1(sourceBuffer).slice(0, 6);
-
-          const componentName = `DemoContent${hash}`;
-          externals.push({source: data.source!, relative: data.relative!});
-          components.push({name: componentName, path: relative(outDir, sourceURL)});
-
-          const parents = ancestors[ancestors.length - 1];
-          // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
-          if (typeof index === 'number') {
-            const container = `DemoContainer${hash}`;
-            declarations.push(createDemoContainerComponent(hash, sourceBuffer));
-            (parents as JSXElement).children[index] = createJSXElement(container);
-          }
-        }
-      }
-
-      if (node.type === 'JSXElement' && data?.image) {
         const parents = ancestors[ancestors.length - 1];
         // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
         if (typeof index === 'number') {
-          const componentName = `Image${data.imageId}`;
-          imports.push(createDefaultImportDeclaration(data.imageUrl!, `Image${data.imageId}`));
+          const container = `DemoContainer${hash}`;
+          declarations.push(createDemoContainerComponent(hash, data.codeBlock.content));
+          (parents as JSXElement).children[index] = createJSXElement(container);
+        }
+      }
+      // 外部组件使用 <code src=""></code> 的方式引入。
+      if (node.type === 'JSXElement' && data.external) {
+        const sourceURL = resolve(data.external.relative, data.external.source);
+        const sourceBuffer = readFileSync(sourceURL, 'utf-8');
+        const hash = sha1(sourceBuffer).slice(0, 6);
+
+        const componentName = `DemoContent${hash}`;
+        externals.push({source: data.external.source, relative: data.external.relative});
+        components.push({name: componentName, path: relative(outDir, sourceURL)});
+
+        const parents = ancestors[ancestors.length - 1];
+        // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
+        if (typeof index === 'number') {
+          const container = `DemoContainer${hash}`;
+          declarations.push(createDemoContainerComponent(hash, sourceBuffer));
+          (parents as JSXElement).children[index] = createJSXElement(container);
+        }
+      }
+
+      // 处理 image 导入
+      if (node.type === 'JSXElement' && data.image) {
+        const parents = ancestors[ancestors.length - 1];
+        // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
+        if (typeof index === 'number') {
+          const componentName = `Image${data.image.uuid}`;
+          imports.push(createDefaultImportDeclaration(data.image.url, `Image${data.image.uuid}`));
           (parents as JSXElement).children[index] = createImageJSXElement(
             componentName,
-            data.imageAlt!
+            data.image.alt!
           );
         }
       }
@@ -125,7 +122,9 @@ export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: st
     imports.push(createImportDeclaration(GENERATE_SITE_DATA_PATH, 'navs', 'menus'));
 
     // 创建 toc 组件
-    const toc = createComponentAst('TableOfContent', vFile.data.toc as any);
+    if (vFile.data.toc) {
+      declarations.push(createComponentAst('TableOfContent', vFile.data.toc as any));
+    }
 
     // 将 Markdown 的内容转换成 JSX 组件。
     const jsxast = <JSXElement>(esTree.body[0] as ExpressionStatement).expression;
@@ -142,17 +141,14 @@ export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: st
       // 声明变量。
       ...declarations,
       // {type: 'EmptyStatement'},
-      // toc
-      toc,
-      // Markdown 内容
+      // Markdown 内容组件
       content,
-      // 默认组件导出。
-      // createExportDefaultAst(content as unknown as FunctionExpression),
+      // 创建 React 应用。
       ...createReactRenderAst('root', 'Document'),
     ];
 
     // 转成字符串。
-    return toJs(esTree, {handlers: jsx}).value.trim();
+    return toJs(esTree, {handlers: jsx} as Options).value.trim();
   };
 }
 

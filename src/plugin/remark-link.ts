@@ -1,24 +1,20 @@
-import {Root} from 'mdast';
 import {VFile} from 'vfile';
+import {Link, Root} from 'mdast';
+import {extname} from 'node:path';
 import {Metadata} from '../type.js';
-import {toRoute} from '../routes.js';
 import {visit} from 'unist-util-visit';
-import {dirname, extname, resolve} from 'node:path';
+import {INLINE_ROUTE_REGEXP} from '../constants.js';
 
-// 处理图片和 a 标签导航路径。
+// 处理内部导航路径。
 // 需要配合 rehpye-jsxify 使用。
-export default function remarkLink(options: {baseUrl: string}) {
-  if (!options?.baseUrl) {
-    throw new Error('BaseUrl options is a must');
-  }
+export default function remarkLink() {
   return (ast: Root, vFile: VFile) => {
-    const {baseUrl} = options;
     const inlineLinks: Metadata['inlineLinks'] = [];
 
     // 转换为路由路径
-    visit<Root, 'link'>(ast, 'link', node => {
-      if (/^(\.|\/)/.test(node.url)) {
-        // const link = toRoute(baseUrl, resolve(dirname(vFile.path), node.url));
+    visit<Root, 'link'>(ast, 'link', (node: Link) => {
+      if (INLINE_ROUTE_REGEXP.test(node.url)) {
+        // 目录路径链接跟随文件目录。所以只需要替换后缀就行了。
         const link = node.url.replace(extname(node.url), '.html');
         inlineLinks.push({origin: node.url, path: link});
         node.url = link;

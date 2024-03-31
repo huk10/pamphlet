@@ -9,20 +9,18 @@ import {join} from 'node:path';
 import remarkDirective from 'remark-directive';
 import remarkFrontmatter from 'remark-frontmatter';
 import {visitParents} from 'unist-util-visit-parents';
-import remarkRawAST from './remark-raw-ast.js';
+import remarkDeleteFrontMatter from './remark-delete-front-matter.js';
 
 export type Embeds = string[];
 
-/**
- * 递归解析引入的其他 Markdown 文件
- * @param {VFile} content
- */
+// 递归解析引入的其他 Markdown 文件
+// 这个最好是外部传入 processor ，此插件影响很大，后面再完善，先不用。
 function parseEmbedFile(content: VFile): {mdast: Root; embeds: Embeds} {
   const result = unified()
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkMath)
-    .use(remarkRawAST)
+    .use(remarkDeleteFrontMatter)
     .use(remarkDirective)
     .use(remarkFrontmatter)
     .use(remarkEmbed)
