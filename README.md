@@ -7,6 +7,8 @@
 
 一个基于 unified 生态的 Markdown 文档生成器，**它可以将 Markdown 文件转换为成一个 html 页面**。
 
+这是部署到 GitHub Pages 的文档地址：[pamphlet](https://huk10.github.io/pamphlet/)
+
 效果图：
 
 ![](./assets/preview.jpg)
