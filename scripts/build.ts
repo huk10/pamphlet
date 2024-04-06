@@ -1,6 +1,7 @@
 import {build} from 'esbuild';
 import {fileURLToPath} from 'node:url';
 import {resolve, dirname} from 'node:path';
+import {lessLoader} from 'esbuild-plugin-less';
 
 const r = (p: string) => resolve(fileURLToPath(dirname(import.meta.url)), p);
 
@@ -21,19 +22,24 @@ await build({
   outfile: r('../libs/components/index.js'),
   tsconfig: r('../tsconfig.build.json'),
   entryPoints: [r('../src/components/index.ts')],
+  plugins: [lessLoader()],
 });
 
 await build({
   bundle: true,
-  minify: true,
-  format: 'esm',
+  minify: false,
+  format: 'cjs',
+  // banner: {
+  // https://github.com/evanw/esbuild/pull/2067
+  // 'js': 'import { createRequire } from \'module\';const require = createRequire(import.meta.url);',
+  // },
   target: 'es2022',
   platform: 'node',
   treeShaking: true,
   // jsdom 压缩后 5m
-  // external: ['jsdom'],
+  external: ['jsdom', 'esbuild', 'chokidar'],
   metafile: true,
-  outfile: r('../libs/index.js'),
+  outfile: r('../libs/index.cjs'),
   tsconfig: r('../tsconfig.build.json'),
   entryPoints: [r('../src/index.ts')],
 });

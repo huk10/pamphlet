@@ -1,44 +1,60 @@
 import {Root} from 'hast';
-import {sha1} from '../utils.js';
+import {sha1} from '../utils/hash.js';
+import {uuid} from '../utils/uuid.js';
 import {NodeData} from './type.js';
-import {Metadata} from '../type.js';
+import {Context} from '../type.js';
 import {readFileSync} from 'node:fs';
 import {FrozenProcessor} from 'unified';
 import {visit} from 'estree-util-visit';
 import {resolve, relative} from 'node:path';
 import {toJs, jsx, Options} from 'estree-util-to-js';
 import {toEstree} from 'hast-util-to-estree';
-import type {Node, JSXElement, VariableDeclaration, JSXAttribute} from 'estree-jsx';
+import type {
+  Node,
+  JSXElement,
+  VariableDeclaration,
+  JSXAttribute,
+  JSXExpressionContainer,
+  Literal,
+} from 'estree-jsx';
 import type {FunctionDeclaration, Expression, ExpressionStatement, ImportDeclaration} from 'estree';
 import {
-  COMPONENTS_PACKAGE_PATH,
+  COMPONENTS_CODEBLOCKS_PATH,
+  COMPONENTS_DEMO_PATH,
+  COMPONENTS_LAYOUT_PATH,
   GENERATE_CODEBLOCKS_DIR_PATH,
-  GENERATE_SITE_DATA_PATH,
+  GENERATE_METADATA_DIR_PATH,
 } from '../constants.js';
-
-const CORE_COMPONENTS = ['Demo', 'Layout'];
 
 // 处理一个 demo 需要有三个步骤：
 // 1. 根据规则生成一个组件名称，这个组件名称不能有重复，可以在组件名称后添加 hash 字符串。
 // 2. 获取其源码。
 // 3. 生成 ast。
 // 生成出来的 demo 组件大概是这样的：
-// import DemoContent2ef7bde from "@pamphlet/codeblocks/codeblocks.2ef7bde"
-// function DemoContainer2ef7bde() {
+// import DemoContent1 from "@pamphlet/codeblocks/codeblocks.2ef7bde"
+// function DemoContainer1() {
 //   const content = `source code`;
 //   return (
 //     <Demo content={content} >
-//       <DemoContent2ef7bde />
+//       <DemoContent1 />
 //     </Demo>
 //   )
 // }
-export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: string}) {
+
+export interface RehpyeJsxifyOptions {
+  // 在引入外部组件时，需要通过这个路径来获取相对路径。
+  // 这里的 outDir 对应外部配置应该是 cacheDir。
+  outDir: string;
+  baseDir: string;
+}
+
+export default function rehpyeJsxify(this: FrozenProcessor, options: RehpyeJsxifyOptions): void {
   this.Compiler = (ast: Root, vFile) => {
-    const {outDir} = options;
+    const {outDir, baseDir} = options;
     const esTree = toEstree(ast as never);
 
-    const externals: Metadata['externals'] = [];
-    const codeblocks: Metadata['codeblocks'] = [];
+    const externals: Context['externals'] = [];
+    const codeblocks: Context['codeblocks'] = [];
 
     const imports: ImportDeclaration[] = [];
     const declarations: FunctionDeclaration[] = [];
@@ -47,44 +63,60 @@ export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: st
     visit(esTree, (node: Node, key, index, ancestors) => {
       const data = ((node as unknown as any).data || {}) as NodeData;
       // 内嵌组件使用 Markdown 语法嵌入的。
-      if (node.type === 'JSXElement' && data.codeBlock) {
-        const hash = sha1(data.codeBlock.content).slice(0, 6);
+      if (node.type === 'JSXElement' && data.embedDemo) {
+        const hash = sha1(data.embedDemo.content);
+        const componentId = uuid();
         const fileName = `codeblocks.${hash}`;
-        const componentName = `DemoContent${hash}`;
+        const componentName = `DemoContent${componentId}`;
         const importPath = `${GENERATE_CODEBLOCKS_DIR_PATH}/${fileName}`;
 
         components.push({name: componentName, path: importPath});
 
         codeblocks.push({
-          content: data.codeBlock.content,
-          relative: data.codeBlock.relative,
+          content: data.embedDemo.content,
+          relative: data.embedDemo.relative,
           fileName: fileName + '.jsx',
         });
 
         const parents = ancestors[ancestors.length - 1];
         // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
         if (typeof index === 'number') {
-          const container = `DemoContainer${hash}`;
-          declarations.push(createDemoContainerComponent(hash, data.codeBlock.content));
-          (parents as JSXElement).children[index] = createJSXElement(container);
+          const container = `DemoContainer${componentId}`;
+          declarations.push(createDemoContainerComponent(componentId + '', data.embedDemo.content));
+          (parents as JSXElement).children[index] = createSelfClosingJSXElement(container);
         }
       }
+
       // 外部组件使用 <code src=""></code> 的方式引入。
       if (node.type === 'JSXElement' && data.external) {
         const sourceURL = resolve(data.external.relative, data.external.source);
         const sourceBuffer = readFileSync(sourceURL, 'utf-8');
-        const hash = sha1(sourceBuffer).slice(0, 6);
+        const componentId = uuid();
 
-        const componentName = `DemoContent${hash}`;
+        const componentName = `DemoContent${componentId}`;
         externals.push({source: data.external.source, relative: data.external.relative});
-        components.push({name: componentName, path: relative(outDir, sourceURL)});
+        const jsx_url = data.external.relative.replace(baseDir, outDir);
+        components.push({name: componentName, path: relative(jsx_url, sourceURL)});
 
         const parents = ancestors[ancestors.length - 1];
         // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
         if (typeof index === 'number') {
-          const container = `DemoContainer${hash}`;
-          declarations.push(createDemoContainerComponent(hash, sourceBuffer));
-          (parents as JSXElement).children[index] = createJSXElement(container);
+          const container = `DemoContainer${componentId}`;
+          declarations.push(createDemoContainerComponent(componentId + '', sourceBuffer));
+          (parents as JSXElement).children[index] = createSelfClosingJSXElement(container);
+        }
+      }
+
+      // 代码块需要使用 CodeBlock 组件渲染。
+      if (node.type === 'JSXElement' && data.codeBlock) {
+        const parents = ancestors[ancestors.length - 1];
+        // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
+        if (typeof index === 'number') {
+          (parents as JSXElement).children[index] = createSelfClosingJSXElement(
+            'CodeBlock',
+            {key: 'content', value: data.codeBlock.content, literal: true},
+            {key: 'lang', value: data.codeBlock.lang, literal: true}
+          );
         }
       }
 
@@ -93,11 +125,13 @@ export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: st
         const parents = ancestors[ancestors.length - 1];
         // 正常来说都是走这个分支，如果没走，就有问题需要再检查下。
         if (typeof index === 'number') {
+          // 这里不需要使用 image.uuid 可以自己生成一个。
           const componentName = `Image${data.image.uuid}`;
-          imports.push(createDefaultImportDeclaration(data.image.url, `Image${data.image.uuid}`));
-          (parents as JSXElement).children[index] = createImageJSXElement(
-            componentName,
-            data.image.alt!
+          imports.push(createDefaultImportDeclaration(data.image.url, componentName));
+          (parents as JSXElement).children[index] = createSelfClosingJSXElement(
+            'img',
+            {key: 'src', value: componentName, literal: false},
+            {key: 'alt', value: data.image.alt || '', literal: true}
           );
         }
       }
@@ -106,6 +140,7 @@ export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: st
     // 这是编译插件，只会是最后调用的。
 
     // 外部组件只需要获取其相对于当前文件的路径，然后使用 import 导入它
+    vFile.data.uuid = uuid();
     vFile.data.externals = externals;
     vFile.data.codeblocks = codeblocks;
 
@@ -113,24 +148,25 @@ export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: st
     imports.push(createImportDeclaration('react-dom/client', 'createRoot'));
 
     // 导入核心组件。
-    imports.push(createImportDeclaration(COMPONENTS_PACKAGE_PATH, ...CORE_COMPONENTS));
+    // 自定义组件可以使用 esbuild 的别名转换 import path
+    // todo 暂时不管有无使用，都全部导入。构建时开启摇树优化就行了
+    imports.push(createImportDeclaration(COMPONENTS_DEMO_PATH, 'Demo'));
+    imports.push(createImportDeclaration(COMPONENTS_LAYOUT_PATH, 'Layout'));
+    imports.push(createImportDeclaration(COMPONENTS_CODEBLOCKS_PATH, 'CodeBlock'));
 
     // 导入 demo 组件。
     components.forEach(item => imports.push(createDefaultImportDeclaration(item.path, item.name)));
 
     // 导入编译生成的 data.js
-    imports.push(createImportDeclaration(GENERATE_SITE_DATA_PATH, 'navs', 'menus'));
-
-    // 创建 toc 组件
-    if (vFile.data.toc) {
-      declarations.push(createComponentAst('TableOfContent', vFile.data.toc as any));
-    }
+    imports.push(
+      createImportDeclaration(GENERATE_METADATA_DIR_PATH + `/data.${vFile.data.uuid}`, 'data')
+    );
 
     // 将 Markdown 的内容转换成 JSX 组件。
     const jsxast = <JSXElement>(esTree.body[0] as ExpressionStatement).expression;
 
     // 使用 Layout 组件包裹
-    const layout = createLayoutComponentAst('Layout', ['navs', 'menus'], jsxast);
+    const layout = createLayoutComponentAst('Layout', jsxast, 'data');
     const content = createComponentAst('Document', layout);
 
     esTree.body = [
@@ -152,65 +188,45 @@ export default function rehpyeJsxify(this: FrozenProcessor, options: {outDir: st
   };
 }
 
-// 创建一个简单自闭合无 props 的 JSX 元素。
-function createJSXElement(name: string): JSXElement {
+function creaetdExpressionDeclaration(value: string): JSXExpressionContainer {
   return {
-    type: 'JSXElement',
-    openingElement: {
-      type: 'JSXOpeningElement',
-      selfClosing: true,
-      attributes: [],
-      name: {
-        type: 'JSXIdentifier',
-        name: name,
-      },
+    type: 'JSXExpressionContainer',
+    expression: {
+      type: 'Identifier',
+      name: value,
     },
-    closingElement: null,
-    children: [],
   };
 }
 
-// 创建一个图片组件。
-function createImageJSXElement(src: string, alt: string): JSXElement {
+function createdLiteralDeclaration(value: string): Literal {
+  return {
+    type: 'Literal',
+    value: value,
+    raw: JSON.stringify(value),
+  };
+}
+
+type Attr = {key: string; value: string; literal: boolean};
+// 创建一个简单自闭合无 props 的 JSX 元素。
+function createSelfClosingJSXElement(name: string, ...attrs: Attr[]): JSXElement {
   return {
     type: 'JSXElement',
     openingElement: {
       type: 'JSXOpeningElement',
       selfClosing: true,
-      attributes: [
-        {
-          type: 'JSXAttribute',
-          name: {
-            type: 'JSXIdentifier',
-            name: 'src',
-          },
-          value: {
-            type: 'JSXExpressionContainer',
-            expression: {
-              type: 'Identifier',
-              name: src,
-            },
-          },
+      attributes: attrs.map(attr => ({
+        type: 'JSXAttribute',
+        name: {
+          type: 'JSXIdentifier',
+          name: attr.key,
         },
-        {
-          type: 'JSXAttribute',
-          name: {
-            type: 'JSXIdentifier',
-            name: 'alt',
-          },
-          value: {
-            type: 'JSXExpressionContainer',
-            expression: {
-              type: 'Literal',
-              value: alt,
-              raw: JSON.stringify(alt),
-            },
-          },
-        },
-      ],
+        value: attr.literal
+          ? createdLiteralDeclaration(attr.value)
+          : creaetdExpressionDeclaration(attr.value),
+      })),
       name: {
         type: 'JSXIdentifier',
-        name: 'img',
+        name: name,
       },
     },
     closingElement: null,
@@ -294,36 +310,6 @@ function createComponentAst(name: string, jsxast: Expression): FunctionDeclarati
   };
 }
 
-// function createStringVariableDeclaration(name: string, value: string): VariableDeclaration {
-//   return {
-//     type: 'VariableDeclaration',
-//     kind: 'const',
-//     declarations: [
-//       {
-//         type: 'VariableDeclarator',
-//         id: {
-//           type: 'Identifier',
-//           name: name,
-//         },
-//         init: {
-//           type: 'TemplateLiteral',
-//           expressions: [],
-//           quasis: [
-//             {
-//               type: 'TemplateElement',
-//               value: {
-//                 cooked: value,
-//                 raw: value,
-//               },
-//               tail: true,
-//             },
-//           ],
-//         },
-//       },
-//     ],
-//   };
-// }
-
 function createDemoAst(name: string, children: JSXElement[]): JSXElement {
   return {
     type: 'JSXElement',
@@ -365,7 +351,7 @@ function createDemoAst(name: string, children: JSXElement[]): JSXElement {
 function createComponentDeclaration(
   name: string,
   content: string,
-  returnValue: JSXElement
+  element: JSXElement
 ): FunctionDeclaration {
   return {
     type: 'FunctionDeclaration',
@@ -399,70 +385,36 @@ function createComponentDeclaration(
         },
         {
           type: 'ReturnStatement',
-          argument: returnValue,
+          argument: element,
         },
       ],
     },
   };
 }
 
-function createLayoutComponentAst(name: string, attrs: string[], jsxast: JSXElement): JSXElement {
+function createLayoutComponentAst(name: string, child: JSXElement, ...attrs: string[]): JSXElement {
   return {
     type: 'JSXElement',
     openingElement: {
       type: 'JSXOpeningElement',
       selfClosing: false,
-      attributes: [
-        {
-          type: 'JSXAttribute',
-          name: {
-            type: 'JSXIdentifier',
-            name: 'toc',
-          },
-          value: {
-            type: 'JSXExpressionContainer',
-            expression: {
-              type: 'JSXElement',
-              openingElement: {
-                type: 'JSXOpeningElement',
-                name: {
-                  type: 'JSXIdentifier',
-                  name: 'TableOfContent',
-                },
-                selfClosing: true,
-                attributes: [],
-              },
-              closingElement: null,
-              children: [],
+      attributes: attrs.map(
+        attr =>
+          ({
+            type: 'JSXAttribute',
+            name: {
+              type: 'JSXIdentifier',
+              name: attr,
             },
-          },
-        },
-        ...attrs.map(
-          attr =>
-            ({
-              type: 'JSXAttribute',
-              name: {
-                type: 'JSXIdentifier',
+            value: {
+              type: 'JSXExpressionContainer',
+              expression: {
+                type: 'Identifier',
                 name: attr,
               },
-              value: {
-                type: 'JSXExpressionContainer',
-                expression: {
-                  type: 'Identifier',
-                  name: attr,
-                },
-              },
-            }) as JSXAttribute
-        ),
-
-        // {
-        //   type: 'JSXSpreadAttribute',
-        //   argument: {
-        //     name: 'data',
-        //     type: 'Identifier',
-        //   },
-        // },
-      ],
+            },
+          }) as JSXAttribute
+      ),
       name: {
         type: 'JSXIdentifier',
         name: name,
@@ -475,7 +427,7 @@ function createLayoutComponentAst(name: string, attrs: string[], jsxast: JSXElem
         name: name,
       },
     },
-    children: [jsxast],
+    children: [child],
   };
 }
 
@@ -567,9 +519,9 @@ function createReactRenderAst(id: string, com: string): [VariableDeclaration, Ex
   ];
 }
 
-function createDemoContainerComponent(hash: string, content: string) {
-  const container = `DemoContainer${hash}`;
-  const body = createJSXElement(`DemoContent${hash}`);
+function createDemoContainerComponent(componentId: string, content: string) {
+  const container = `DemoContainer${componentId}`;
+  const body = createSelfClosingJSXElement(`DemoContent${componentId}`);
   const children = createDemoAst('Demo', [body]);
   return createComponentDeclaration(container, content, children);
 }

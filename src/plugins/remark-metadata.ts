@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import {min} from 'lodash';
 import {Heading, Root} from 'mdast';
 import {VFile} from 'vfile';
 import {statSync} from 'node:fs';
@@ -56,10 +57,12 @@ export default function remarkMetadata() {
           result.title = toString(node.children);
         }
       });
-      if (minDepth <= 2) {
-        result.title = heading;
-      } else {
-        result.title = basename(vFile.path).slice(0, -extname(vFile.path).length);
+      if (!result.title) {
+        if (minDepth >= 2) {
+          result.title = heading;
+        } else {
+          result.title = basename(vFile.path).slice(0, -extname(vFile.path).length);
+        }
       }
     }
     // 赋值给 vFile

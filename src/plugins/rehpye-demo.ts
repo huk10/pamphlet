@@ -1,7 +1,8 @@
 import {VFile} from 'vfile';
-import {Metadata} from '../type.js';
+import {Context} from '../type.js';
 import {NodeData} from './type.js';
 import {visit} from 'unist-util-visit';
+import {toHtml} from 'hast-util-to-html';
 import {Element, Root, Text} from 'hast';
 import {visitParents} from 'unist-util-visit-parents';
 
@@ -12,6 +13,16 @@ function getLang(node: Element): string {
     return (<string>node.properties!.className?.[0]).split('-')[1] || '';
   }
   return '';
+}
+
+function hasDemo(lang: string, meta: string, content: string): boolean {
+  if (meta.includes('pure')) return false;
+  if (!['ts', 'js', 'javascript', 'typescript', 'jsx', 'tsx'].includes(lang)) return false;
+  if (['js', 'javascript'].includes(lang) && !meta.includes('jsx')) return false;
+  if (['ts', 'typescript'].includes(lang) && !(meta.includes('jsx') || meta.includes('tsx'))) {
+    return false;
+  }
+  return content.includes('export default ');
 }
 
 /**
@@ -37,21 +48,21 @@ export default function rehpyeDemo() {
       if (node.tagName !== 'code') return;
       const lang = getLang(node);
       const meta = (<{meta?: string}>(<NodeData>node.data))?.meta ?? '';
-      (vFile.data as unknown as Metadata).codes ??= [];
-      (vFile.data as unknown as Metadata).codes.push({lang, meta});
-      if (meta.includes('pure')) return;
-      if (!['ts', 'js', 'javascript', 'typescript', 'jsx', 'tsx'].includes(lang)) return;
-      if (['js', 'javascript'].includes(lang) && !meta.includes('jsx')) return;
-      if (['ts', 'typescript'].includes(lang) && !(meta.includes('jsx') || meta.includes('tsx'))) {
-        return;
-      }
-      if (!(<Text>node.children[0]).value.includes('export default ')) return;
+      const content = (<Text>node.children[0]).value!;
       const paraNode = ancestors[ancestors.length - 1] as Element;
+      // 忽略单行代码块
+      if (paraNode.tagName !== 'pre') return;
+      if (lang) {
+        (vFile.data as unknown as Context).codes ??= [];
+        (vFile.data as unknown as Context).codes.push({lang, meta});
+      }
+      const isDemo = hasDemo(lang, meta, content);
       (<NodeData>(<unknown>paraNode.data)) ??= {} as NodeData;
-      (<NodeData>(<unknown>paraNode.data)).codeBlock = {
+      // 如果是 demo 就使用 Demo 组件渲染，如果不是就使用 CodeBlock 渲染
+      (<NodeData>(<unknown>paraNode.data))[isDemo ? 'embedDemo' : 'codeBlock'] = {
         lang: lang,
+        content: content,
         relative: vFile.dirname!,
-        content: (<Text>node.children[0]).value,
       };
     });
 

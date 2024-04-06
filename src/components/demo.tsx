@@ -1,4 +1,4 @@
-import './demo.css';
+import './demo.less';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism.min.css';
 import {useEffect, useState} from 'react';

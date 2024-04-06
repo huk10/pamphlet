@@ -2,8 +2,8 @@ import {JSDOM} from 'jsdom';
 import {copyFile} from 'fs/promises';
 import {OutputFile, Plugin} from 'esbuild';
 import {writeFile} from 'node:fs/promises';
-import {createDirectory} from '../utils.js';
 import {resolve, isAbsolute, dirname, extname, basename, relative} from 'node:path';
+import {createDirectory} from '../utils/mkdir.js';
 
 export interface HtmlPluginOptions {
   // html 标签上的 lang 属性

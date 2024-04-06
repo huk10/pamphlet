@@ -3,10 +3,10 @@ import {readSync} from 'to-vfile';
 import remarkParse from 'remark-parse';
 import remarkStringify from 'remark-stringify';
 import remarkFrontMatter from 'remark-frontmatter';
-import remarkMetadata from '../../src/plugin/remark-metadata.js';
+import remarkMetadata from '../../src/plugins/remark-metadata.js';
 
 import {describe, it, expect} from 'vitest';
-import {Metadata} from '../../src/type.js';
+import {Context} from '../../src/type.js';
 
 describe('remark-metadata', async () => {
   it('test default value', async () => {
@@ -16,7 +16,7 @@ describe('remark-metadata', async () => {
       .use(remarkStringify as never)
       .process(readSync(new URL('./fixtures/metadata/default.md', import.meta.url)));
 
-    expect((result.data as Metadata).frontMatter).toStrictEqual({
+    expect((result.data as Context).frontMatter).toStrictEqual({
       title: 'default metadata',
       created: '2024-03-21 23:37',
       updated: '2024-03-22 00:06',
@@ -30,7 +30,7 @@ describe('remark-metadata', async () => {
       .use(remarkStringify as never)
       .process(readSync(new URL('./fixtures/metadata/override-default.md', import.meta.url)));
 
-    expect((result.data as Metadata).frontMatter).toStrictEqual({
+    expect((result.data as Context).frontMatter).toStrictEqual({
       title: 'Title',
       created: '2017-04-09',
       updated: '2017-04-10',

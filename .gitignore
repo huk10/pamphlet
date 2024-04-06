@@ -8,3 +8,5 @@ libs
 dist*
 coverage
 /index.ts
+
+example

@@ -1,10 +1,8 @@
-import {toEstree} from 'hast-util-to-estree';
-import {toHast} from 'mdast-util-to-hast';
 import {VFile} from 'vfile';
 import {toc} from 'mdast-util-toc';
 import {Root, List, Link} from 'mdast';
 import {toString} from 'mdast-util-to-string';
-import {Metadata, TableOfContent} from '../type.js';
+import {Context, TableOfContent} from '../type.js';
 
 function toStruct(root: List): TableOfContent[] {
   const result: TableOfContent[] = [];
@@ -34,7 +32,7 @@ function toStruct(root: List): TableOfContent[] {
 
 function counts(root: TableOfContent[]): number {
   let count = 0;
-  const nodes: TableOfContent[] = root;
+  const nodes: TableOfContent[] = root.slice();
   while (nodes.length) {
     const node = nodes.shift()!;
     count++;
@@ -48,22 +46,20 @@ function counts(root: TableOfContent[]): number {
 export interface RemarkTocOptions {
   // 至少需要多少条数据才生成 toc
   count?: number;
+  maxDepth?: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
 // Get the jsx ast form of table of content
 export default function remarkToc(options: RemarkTocOptions = {}) {
   return (ast: Root, vFile: VFile) => {
-    const {count = 3} = options;
-    const table = toc(ast as any);
+    const {count = 3, maxDepth = 6} = options;
+    const table = toc(ast as any, {maxDepth});
 
     if (table.map) {
       const struct = toStruct(table.map as List);
       if (counts(struct) < count) return ast;
 
-      const hast = toHast(table.map);
-      const east = toEstree(hast);
-      (vFile.data as unknown as Metadata).toc = east;
-      (vFile.data as unknown as Metadata).tableOfContents = struct;
+      (vFile.data as unknown as Context).tableOfContents = struct;
     }
 
     return ast;

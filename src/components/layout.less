@@ -1,0 +1,219 @@
+@prefix: pamphlet;
+
+@header-z-index: 999;
+@header-height: 32px;
+@header-padding-y: 1rem;
+@header-full-height: calc(@header-height + 2 * @header-padding-y);
+
+:root {
+  --primary-color: #1890ff;
+  // 文字颜色
+  --text-color-1: #262626; // 标题/正文，对应T1文字类型(大字体)，深色图标
+  --text-color-2: #595959; // 正文文字，对应T2文字类型(正常字体)
+  --text-color-3: #8c8c8c; // 辅助文字，对应T3文字类型
+  --text-color-4: #bfbfbf; // 占位文字、禁用状态文字，对应T4文字类型
+  --text-color-5: #d9d9d9; // 图标(浅)、可交互的描边色
+
+  // 链接颜色
+  --link-color: #1890ff;
+
+  // border 线
+  --border-color-1: #e5e5e5;
+  --border-color-2: #f0f0f0;
+}
+
+/*滚动条*/
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+  background-color: #fff;
+}
+::-webkit-scrollbar-track {
+  background-color: #e7e7e7;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background-color: #bfbfbf;
+}
+
+html {
+  box-sizing: border-box;
+}
+
+html *,
+html *:after,
+html *:before {
+  box-sizing: inherit;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-size: 16px;
+  min-width: 20rem;
+  color: var(--text-color-2);
+}
+
+.@{prefix}-container {
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  max-width: 80rem;
+  min-height: 100%;
+}
+
+.@{prefix}-main {
+  display: flex;
+  gap: 1rem;
+  min-height: 100%;
+}
+
+.@{prefix}-header {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: @header-padding-y 0;
+  position: sticky;
+  top: 0;
+  z-index: @header-z-index;
+  background-color: rgba(255, 255, 255, 0.98);
+
+  .@{prefix}-header-title {
+    display: flex;
+    align-items: center;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--text-color-1);
+    text-decoration: none;
+    flex-basis: 16rem;
+    img {
+      max-height: @header-height;
+      margin-inline-end: 10px;
+    }
+  }
+
+  .@{prefix}-header-navbar {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    a {
+      font-weight: 400;
+      color: var(--text-color-2);
+      text-decoration: none;
+      margin-inline-end: 48px;
+    }
+    a.active {
+      font-weight: bolder;
+      color: var(--text-color-1);
+    }
+  }
+
+  .@{prefix}-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: @header-height;
+    line-height: @header-height;
+  }
+  .@{prefix}-header-links {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    line-height: 16px;
+  }
+  .@{prefix}-header-versions {
+    height: 100%;
+  }
+  .@{prefix}-header-languages {
+    height: 100%;
+  }
+}
+
+.@{prefix}-sidebar {
+  font-size: 14px;
+  flex: 0 0 16rem;
+
+  .@{prefix}-sidebar-nav-group {
+    margin-top: 12px;
+    color: var(--text-color-1);
+    font-size: 14px;
+    font-weight: bolder;
+    white-space: nowrap;
+    overflow: hidden;
+    line-height: 32px;
+    text-overflow: ellipsis;
+  }
+  .@{prefix}-sidebar-nav-item {
+    display: flex;
+    cursor: pointer;
+    line-height: 32px;
+    word-wrap: break-word;
+    color: var(--text-color-2);
+    text-decoration: none;
+  }
+  .@{prefix}-sidebar-nav-item:hover {
+    text-decoration: underline;
+  }
+}
+
+.@{prefix}-toc {
+  flex: 0 0 16rem;
+  font-size: 14px;
+  .@{prefix}-toc-item {
+    line-height: 32px;
+  }
+  .@{prefix}-toc-group {
+    padding-left: 1rem;
+  }
+  .@{prefix}-toc-group-children {
+    padding-left: 1rem;
+  }
+  a {
+    text-decoration: none;
+    color: var(--link-color);
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+.@{prefix}-sidebar, .@{prefix}-toc {
+  position: sticky;
+  top: @header-full-height;
+  max-height: calc(100vh - @header-full-height);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.@{prefix}-content {
+  flex: 1;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  overflow-x: auto;
+
+  .@{prefix}-content-footer {
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--text-color-3);
+    svg {
+      width: 16px;
+      color: var(--text-color-3);
+      margin-right: 6px;
+    }
+    > div {
+      display: flex;
+      align-items: center;
+    }
+  }
+}
