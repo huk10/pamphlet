@@ -9,6 +9,8 @@
 
 这是部署到 GitHub Pages 的文档地址：[pamphlet](https://huk10.github.io/pamphlet/)
 
+*该项目目前还处于比较初期的阶段，样式、配置等都比较粗糙，还没有进行优化。*
+
 效果图：
 
 ![](./assets/preview.jpg)
