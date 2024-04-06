@@ -10,3 +10,4 @@ coverage
 /index.ts
 
 example
+/setup.mjs
